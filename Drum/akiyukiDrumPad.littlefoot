@@ -1,0 +1,110 @@
+/*
+<metadata description="Monophonic drum pad." details="Monophonic drum pad, sendding MIDI note. You can set MIDI channel." target="Lightpad" tags="MPE;MIDI;Drum">
+    <groups>
+      <group name="colours" displayName="Colours" />
+    </groups>
+
+    <variables>
+      <variable name="channel" displayName="MIDI Channel" type="int" min="1" max="16" value="1" displayMode="stepper" tooltip="The MIDI channel that values are sent on" />
+      <variable name="padColour1"  displayName="Pad 1 Colour" group="colours" type="colour" value="0xffe557da" />
+      <variable name="padColour2"  displayName="Pad 2 Colour" group="colours" type="colour" value="0xfff9a366" />
+      <variable name="padColour3"  displayName="Pad 3 Colour" group="colours" type="colour" value="0xff4dbdf8" />
+      <variable name="padColour4"  displayName="Pad 4 Colour" group="colours" type="colour" value="0xff4dbdf8" />
+    </variables>
+</metadata>
+*/
+
+int padWidth, padSpacing;
+int gridSize;
+int playedPad;
+
+//==============================================================================
+int Pad_getColour (int padIndex)
+{
+    if (padIndex == 0)  return padColour1;
+    if (padIndex == 1)  return padColour2;
+    if (padIndex == 2)  return padColour3;
+    if (padIndex == 3)  return padColour4;
+    return 0xffffffff;
+}
+
+//==============================================================================
+int getTouchedPad (float x, float y)
+{
+    // Pad positions are inverted in y - i.e. 0 is bottom left, not top left.
+    int row = gridSize - (int (y * (0.95 / 2.0) * float (gridSize))) - 1;
+	int col = int (x * (0.95 / 2.0) * float (gridSize));
+
+	return (gridSize * row) + col;
+}
+
+//==============================================================================
+void drawPad (int x, int y, int colour)
+{
+    int w = padWidth - padSpacing;
+    blendRect(colour, x * padWidth, y * padWidth, w, w);
+}
+
+void drawPads()
+{
+    int padIndex = 0;
+
+	for (int padY = 0; padY < gridSize; ++padY)
+	{
+		for (int padX = 0; padX < gridSize; ++padX)
+		{
+            drawPad (padX, gridSize - padY - 1, Pad_getColour (padIndex));
+
+            ++padIndex;
+		}
+	}
+}
+
+void initialise()
+{
+    gridSize = 2;
+    playedPad = 0;
+
+	padWidth = 15 / gridSize;
+	padSpacing = gridSize > 1 ? (15 - gridSize * padWidth) / (gridSize - 1) : 0;
+	padWidth += padSpacing;
+
+	for (int i = 0; i < 32; ++i)
+        setLocalConfigActiveState (i, false, false);
+}
+
+//==============================================================================
+void repaint()
+{
+	clearDisplay();
+
+	if (isConnectedToHost())
+        drawPads();
+}
+
+//==============================================================================
+void touchStart (int touchIndex, float x, float y, float z, float vz)
+{
+    if (touchIndex == 1)
+    {
+        playedPad = getTouchedPad (x, y);
+        int note = 60 + playedPad;
+        int colour = Pad_getColour (playedPad);
+        int velocity = clamp (0, 127, int (vz * 127.0));
+        sendNoteOn ((channel - 1), note, velocity);
+    }
+}
+
+void touchMove (int touchIndex, float x, float y, float z, float vz)
+{
+}
+
+void touchEnd (int touchIndex, float x, float y, float z, float vz)
+{
+    if (touchIndex == 1)
+    {
+        int note = 60 + playedPad;
+        int velocity = clamp (0, 127, int (vz * 127.0));
+        sendNoteOff ((channel - 1), note, velocity);
+    }
+}
