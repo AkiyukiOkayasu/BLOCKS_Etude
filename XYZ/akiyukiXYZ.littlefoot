@@ -1,0 +1,68 @@
+/*
+<metadata description="XYZ Pad controller." details="XY pad with the addition of pressure (Z), sending out MIDI CC. You can set MIDI CC number and channel."
+          target="Lightpad" 
+          tags="MIDI;Controller;">
+    <variables>
+        <variable name="xCCNumber" displayName="X axis CC" type="int" min="0" max="127" value="113" displayMode="stepper" tooltip="The MIDI CC that is sent for X position changes" />
+        <variable name="yCCNumber" displayName="Y axis CC" type="int" min="0" max="127" value="114" displayMode="stepper" tooltip="The MIDI CC that is sent for Y position changes" />
+        <variable name="zCCNumber" displayName="Z axis CC" type="int" min="0" max="127" value="115" displayMode="stepper" tooltip="The MIDI CC that is sent for Z (pressure) position changes" />
+        <variable name="channel" displayName="MIDI Channel" type="int" min="1" max="16" value="1" displayMode="stepper" tooltip="The MIDI channel that values are sent on" />
+    </variables>
+</metadata>
+*/
+
+int Xval;
+int Yval;
+int Zval;
+
+void initialise()
+{
+    Xval = 0;
+    Yval = 0;
+    Zval = 0;
+
+	for (int i = 0; i < 32; ++i)
+        setLocalConfigActiveState (i, false, false);
+}
+
+void sendXYZCC(float x, float y, float z)
+{
+    Xval = int(map(x, 0.07, 1.93, 0.0, 127.0));
+    Yval = int(map(y, 1.93, 0.07, 0.0, 127.0));
+    Zval = int(map(z, 0.0, 1.0, 0.0, 127.0));
+    sendCC ((channel - 1), xCCNumber, Xval);
+    sendCC ((channel - 1), yCCNumber, Yval);
+    sendCC ((channel - 1), zCCNumber, Zval);
+}
+
+void touchStart (int index, float x, float y, float z, float vz)
+{
+    addPressurePoint (0xFFFFFFFF, x, y, z * 5.0);
+    sendXYZCC(x, y, z);
+}
+
+void touchMove (int index, float x, float y, float z, float vz)
+{
+    addPressurePoint (0xFFFFFFFF, x, y, z * 2.0);
+    sendXYZCC(x, y, z);
+}
+
+void touchEnd (int touchIndex, float x, float y, float z, float vz)
+{
+    Xval = 0;
+    Yval = 0;
+    Zval = 0;    
+    sendCC ((channel - 1), xCCNumber, Xval);
+    sendCC ((channel - 1), yCCNumber, Yval);
+    sendCC ((channel - 1), zCCNumber, Zval);
+}
+
+void repaint()
+{
+    clearDisplay();
+    drawPressureMap();
+    fadePressureMap();
+    drawNumber(Xval, 0xffff0000, 0, 0);
+    drawNumber(Yval, 0xff00ff00, 0, 5); 
+    drawNumber(Zval, 0xff0000ff, 0, 10); 
+}
